@@ -14,14 +14,14 @@ for i in {1..20}
 do
         echo "Index: $i"
 	# merge for S1 : L1R1 and L2R1 and obtain lanemerged (lm) R1 file
-	cat *22030a0**${i}_01_S${i}_L00[1,2]_R1_001.fastq.gz > 22030a0${i}_01_S${i}_lm_R1.fastq.gz
+	cat *22030a0**${i}*_01_S${i}_L00[1,2]_R1_001.fastq.gz > 22030a0${i}_01_S${i}_lm_R1.fastq.gz
 	# merge for L1R2 and L2R2 and obtain lanemerged (lm) R2 file
-	cat *22030a0**${i}_01_S${i}_L00[1,2]_R2_001.fastq.gz > 22030a0${i}_01_S${i}_lm_R2.fastq.gz
+	cat *22030a0**${i}*_01_S${i}_L00[1,2]_R2_001.fastq.gz > 22030a0${i}_01_S${i}_lm_R2.fastq.gz
 	
 	# merge for S2 : L1R1 and L2R1 and obtain lanemerged (lm) R1 file
-	cat *22030a0**${i}_02_S${i}_L00[1,2]_R1_001.fastq.gz > 22030a0${i}_02_S${i}_lm_R1.fastq.gz
+	cat *22030a0**${i}*_02_S${i}_L00[1,2]_R1_001.fastq.gz > 22030a0${i}_02_S${i}_lm_R1.fastq.gz
 	# merge for L1R2 and L2R2 and obtain lanemerged (lm) R2 file
-	cat *22030a0**${i}_02_S${i}_L00[1,2]_R2_001.fastq.gz > 22030a0${i}_02_S${i}_lm_R2.fastq.gz
+	cat *22030a0**${i}*_02_S${i}_L00[1,2]_R2_001.fastq.gz > 22030a0${i}_02_S${i}_lm_R2.fastq.gz
 
 	# Now perform Sample merging of the lane merged files
 
@@ -29,6 +29,9 @@ do
 	cat 22030a0*${i}*_0[1,2]_S${i}_lm_R1.fastq.gz > AJ${i}_sm_R1.fastq.gz
 	# merge 01_lm_R2 and 02_lm_R2 into single samplemerged(sm) R2 file
 	cat 22030a0*${i}*_0[1,2]_S${i}_lm_R2.fastq.gz > AJ${i}_sm_R2.fastq.gz
+	
+	# since it is pair-ended, need to merge R1 and R2 as well to obtain a pair merged (pm) file
+	cat AJ${i}_sm_R[1,2].fastq.gz > AJ${i}_pm.fastq.gz
 done
 
 # Enlist only the lanemerged R1 and R2 fastq files
@@ -40,4 +43,6 @@ ls -l *_sm_R[1,2]*.fastq.gz
 
 # Move the two samplemerged R1 and R2 file into external folder
 #mv *sm*.fastq.gz /home/keshavprasadgubbi/Documents/Anna-Lena_dataset/mergedfiles
+
+#for i in {1..20}; do cat AJ${i}_sm_R[1,2].fastq.gz > AJ${i}_pm.fastq.gz ; done
 
