@@ -1,20 +1,21 @@
  #!/bin/bash
 
 # define variables
-gd=/mnt/cbe3b976-3837-467e-801d-f641e979b935/genome_index_fromSTAR_usingm39/
+#gd=/mnt/cbe3b976-3837-467e-801d-f641e979b935/genome_index_fromSTAR_usingm39/
+
 
 filepath=/media/keshavprasadgubbi/HornefLab_Data2/fastq_files_Tuebingen/Anna-Lena_dataset/test
 
 # get our data files
-R1FILES=$filepath/AJ1_sm_R1.fastq.gz,$filepath/AJ2_sm_R1.fastq.gz
-R2FILES=$filepath/AJ1_sm_R2.fastq.gz,$filepath/AJ2_sm_R2.fastq.gz
+R1FILES=$filepath/AJ1_sm_R1.fastq.gz,$filepath/AJ2_sm_R1.fastq.gz,$filepath/AJ3_sm_R1.fastq.gz,$filepath/AJ4_sm_R1.fastq.gz,$filepath/AJ5_sm_R1.fastq.gz,$filepath/AJ6_sm_R1.fastq.gz,$filepath/AJ7_sm_R1.fastq.gz,$filepath/AJ8_sm_R1.fastq.gz,$filepath/AJ9_sm_R1.fastq.gz,$filepath/AJ10_sm_R1.fastq.gz
+R2FILES=filepath/AJ1_sm_R2.fastq.gz,$filepath/AJ2_sm_R2.fastq.gz,$filepath/AJ3_sm_R2.fastq.gz,$filepath/AJ4_sm_R2.fastq.gz,$filepath/AJ5_sm_R2.fastq.gz,$filepath/AJ6_sm_R2.fastq.gz,$filepath/AJ7_sm_R2.fastq.gz,$filepath/AJ8_sm_R2.fastq.gz,$filepath/AJ9_sm_R2.fastq.gz,$filepath/AJ10_sm_R2.fastq.gz
 
 
 for f in $(ls *.fastq.gz)
 do
     echo $f
-    STAR --runThreadN 4 --genomeDir $gd --readFilesIn $R1FILES $R2FILES --outSAMtype BAM SortedByCoordinate \
-         --quantMode GeneCounts --outFileNamePrefix ./aligned/$f. --readFilesCommand zcat
+    STAR --runThreadN 8 --genomeDir $gd --readFilesIn $R1FILES $R2FILES --outSAMtype BAM SortedByCoordinate \
+         --quantMode GeneCounts --outFileNamePrefix ./aligned/aligned_$f. --readFilesCommand zcat
 done
 echo "done!"
 
