@@ -16,9 +16,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-	echo = TRUE,
-	message = TRUE,
-	warning = FALSE
+  echo = TRUE,
+  message = TRUE,
+  warning = FALSE
 )
 ```
 
@@ -65,7 +65,7 @@ suppressPackageStartupMessages(library("pcaExplorer"))
 ```
 
 
-```{r File Path Declarations }
+```{r File Path Declarations}
 # Project Path
 Anna_project_path <- file.path("C:/Users/kesha/Documents/R/Annalena_TotalRNAseq/")
 
@@ -77,15 +77,12 @@ Day35_UninfectedVSUninfected_path <- file.path(Anna_project_path, "Day35_Uninfec
 # for UninfectedVSInfected is the volcano plot notation: for Deseq2 results, the infected is Nr. and uninfected is Dr. .
 
 # Provide the countsmatrix and the samples
-countsmatrix_path <- file.path(Anna_project_path,"Countmatrix_mapped_Anna_totalRNAseq.csv")
-samples_path <- file.path(Anna_project_path,"Samples_anna.csv")
-
-# Also Create a comparison Variable: That Could be used later for all other comparison titles using a glue Variable.
-
-Comparison <- "Day3_UninfectedVSInfected"
+countsmatrix_path <- file.path(Anna_project_path, "Countmatrix_mapped_Anna_totalRNAseq.csv")
+samples_path <- file.path(Anna_project_path, "Samples_anna.csv")
 
 # Comparison_Path! NEEDS TOBE UPDATED FOR EVERY NEW COMPARISON BEING RUN for pipeline!
 Comparison_Path <- Day3_UninfectedVSInfected_path
+
 # Paths for Different Plots and Tables for each comparison. To be updated for each respective comparison that is being run for
 SignificantGenes_path <- file.path(Comparison_Path, "/SignificantGenes.csv")
 results_path <- file.path(Comparison_Path, "/results_DGE.csv")
@@ -93,24 +90,12 @@ UpGeneList_path <- file.path(Comparison_Path, "/UpGeneList_DGE.csv")
 DownGeneList_path <- file.path(Comparison_Path, "/DownGeneList_DGE.csv")
 GO_UPReg_path <- file.path(Comparison_Path, "/GO_UPReg_results.csv")
 GO_DOWNReg_path <- file.path(Comparison_Path, "/GO_DOWNReg_results.csv")
-
 ```
 
-```{r counts Matrix processing}
+```{r Count Matrix Input}
 ## Input the Count Matrix
 
 countsmatrix <- read.csv(countsmatrix_path, stringsAsFactors = TRUE)
-
-### Clean up the Count Matrix
-rownames(countsmatrix) <- countsmatrix[, 1]
-# converting first column of gene ID into rownames, to be used for sanity check later
-
-# It is IMPORTANT to keep the names of the genes in the rownames
-countsmatrix <- subset(countsmatrix, select = - symbols) # dropping the X column
-
-## Display the column names
-# colnames(countsmatrix)
-
 ### Annotating and Exporting ENSEMBL ID into Gene Symbols
 
 # Adding genes annotated from ENSEMBL ID to Gene symbols and ENTREZ Id to countsmatrix table.
@@ -118,7 +103,7 @@ countsmatrix <- subset(countsmatrix, select = - symbols) # dropping the X column
 
 # cm_row <- rownames(countsmatrix)
 # head(cm_row)
-# 
+#
 # # Mapping the ENSEMBL ID to Symbol and ENTREZ ID
 # symbols <- mapIds(
 #   org.Mm.eg.db,
@@ -127,36 +112,57 @@ countsmatrix <- subset(countsmatrix, select = - symbols) # dropping the X column
 #   keytype = "ENSEMBL",
 #   multiVals = "first"
 # )
-# 
+#
 # # Create symbols column
 # symbols <- symbols[!is.na(symbols)]
 # symbols <- symbols[match(rownames(countsmatrix), names(symbols))]
-# 
+#
 # # Creating a new column called genename and putting in the symbols and entrez columns into count matrix
 # countsmatrix$genename <- symbols
-# 
+#
 # # Removing all rows with NA values for genenames, so that those rows are filtered out.
 # countsmatrix <- unique(countsmatrix[rowSums(is.na(countsmatrix)) == 0, ]) # Apply rowSums & is.na
-# 
+#
 # nrow(countsmatrix)
-# 
+#
 # # Moving the ENSEMBL ID from rownames into separate column for itself.
 # countsmatrix <- tibble::rownames_to_column(countsmatrix, "E_ID")
 # # Removing the duplicated genes so that then these genes can be made into rownames for countsmatrix
 # countsmatrix <- distinct(countsmatrix[!duplicated(countsmatrix$genename), ])
-# 
+#
 # # Now make the ganename column into rownames of count matrix
 # rownames(countsmatrix) <- countsmatrix[, "genename"]
-# 
+#
 # # Dropping the column E_ID, genenames so that only numeric values are present in it as an input of DESEq Object.
 # countsmatrix <- subset(countsmatrix, select = -c(genename, E_ID))
+```
 
+```{r Gender Genes Filtering}
+countsmatrix <- countsmatrix %>% filter(
+  symbols != "Xist",
+  symbols != "Jpx",
+  symbols != "Ftx",
+  symbols != "Tsx",
+  symbols != "Cnbp2"
+)
+```
+
+```{r Counts Matrix Processing}
+## Display the column names
+colnames(countsmatrix)
+
+### Clean up the Count Matrix
+rownames(countsmatrix) <- countsmatrix[, 1]
+# converting first column of gene ID into rownames, to be used for sanity check later
+
+# It is IMPORTANT to keep the names of the genes in the rownames
+countsmatrix <- subset(countsmatrix, select = -symbols) # dropping the X column
+#
 # Changing countsmatrix into Matrix of numeric values so that only numeric values are present in it as an input of DESEq Object.
 countsmatrix <- as.matrix(countsmatrix)
 class(countsmatrix) <- "numeric"
-
 ### The Count Matrix is:
-head(countsmatrix, 5)
+head(countsmatrix, 15)
 ```
 
 ```{r coldata processing}
@@ -177,10 +183,54 @@ colnames(countsmatrix) <- coldata$Sample_Name
 ```{r}
 ### Reduce larger Matrix to smaller one - based on comparison
 # *****************Now to the comparisons*************
-# d7 spF vs adult spF
-# coldata <- coldata[c(9, 10, 11, 18, 19, 20), ]
-# countsmatrix <- countsmatrix[, c(9, 10, 11, 18, 19, 20)]
-# ******************************************************
+# There are two groups of data here
+# Day 3: Infected : c(5,6,7,8) and Uninfected: c(9,10,13,14)
+# Day 5: Infected : c(1,2,3,4) and Uninfected: c(11,12,15,16)
+
+# # d3 UninfectedVSInfected
+# Using is.element()
+d3_UninfectedVSInfected_coldata <- 
+  coldata[is.element(coldata$Sample_Name, c("AJ_05",  "AJ_06", 
+                                            "AJ_07",  "AJ_08", 
+                                            "AJ_09",  "AJ_10", 
+                                            "AJ_13",  "AJ_14")), ]
+# Select Rows by list of column values
+d3_UninfectedVSInfected_countsmatrix <- subset(countsmatrix, 
+                                               select = c("AJ_05", "AJ_06", 
+                                                          "AJ_07", "AJ_08", 
+                                                          "AJ_09", "AJ_10", 
+                                                          "AJ_13", "AJ_14"))
+
+# need to rearrange order of columns to be in sync with rownames for deseq2
+d3_UninfectedVSInfected_countsmatrix <- 
+  d3_UninfectedVSInfected_countsmatrix[, rownames(d3_UninfectedVSInfected_coldata)]
+
+
+# # d5 UninfectedVSInfected
+d5_UninfectedVSInfected_coldata <-
+  coldata[is.element(coldata$Sample_Name, c("AJ_01", "AJ_02",
+                                            "AJ_03", "AJ_04",
+                                            "AJ_11", "AJ_12",
+                                            "AJ_15", "AJ_16")), ]
+# # Select Rows by list of column values
+d5_UninfectedVSInfected_countsmatrix <- subset(countsmatrix,
+                                               select = c("AJ_01", "AJ_02",
+                                                          "AJ_03", "AJ_04",
+                                                          "AJ_11", "AJ_12",
+                                                          "AJ_15", "AJ_16"))
+
+# need to rearrange order of columns to be in sync with rownames for deseq2
+d5_UninfectedVSInfected_countsmatrix <-
+  d5_UninfectedVSInfected_countsmatrix[, rownames(d5_UninfectedVSInfected_coldata)]
+```
+
+```{r The Processed Input is Ready!}
+# Also Create a comparison Variable: That Could be used later for all other comparison titles using a glue Variable.
+Comparison <- "Day3_UninfectedVSInfected"
+
+# Provide the correct Coldata and Countsmatrix for Comparison to be performed!
+coldata <- d3_UninfectedVSInfected_coldata
+countsmatrix <- d3_UninfectedVSInfected_countsmatrix
 ```
 
 ```{r}
@@ -189,7 +239,7 @@ colnames(countsmatrix) <- coldata$Sample_Name
 saveplot <- function(plot, name) {
   # Function to save the plots
   ggsave(
-    filename = glue(Comparison_Path,"/{name}.png"),
+    filename = glue(Comparison_Path, "/{name}.png"),
     plot = plot,
     dpi = 300,
     width = 25,
@@ -207,7 +257,9 @@ all(rownames(coldata) %in% colnames(countsmatrix))
 ncol(countsmatrix) == nrow(coldata)
 dim(countsmatrix)
 
+```
 
+```{r}
 ## Creating the DESeq Data set Object
 dds <- DESeqDataSetFromMatrix(
   countData = countsmatrix,
@@ -240,7 +292,7 @@ colors <- colorRampPalette(rev(brewer.pal(9, "RdYlBu")))(255)
 (EuclideanDistanceHeatmap <- pheatmap(sampleDistMatrix,
   clustering_distance_rows = sampleDists,
   clustering_distance_cols = sampleDists,
-  main = "Sample-to-Sample Euclidean Distance of Samples",
+  main = glue("Sample-to-Sample Euclidean Distance of Samples: {Comparison}"),
   col = colors
 ))
 
@@ -253,33 +305,31 @@ colors <- colorRampPalette(rev(brewer.pal(9, "RdYlBu")))(255)
 (poisson_dist_plot <- pheatmap(samplePoisDistMatrix,
   clustering_distance_rows = poisd$dd,
   clustering_distance_cols = poisd$dd,
-  main = "Sample-to-Sample Poisson Distance of Samples",
+  main = glue("Sample-to-Sample Poisson Distance of Samples: {Comparison}"),
   col = colors
 ))
 ```
 
-```{r}
+```{r fig.height=6, fig.width=6}
 # PCA Plot
 
 ### Functions for Plot aethetics and saving PCA Plots
 color_values <- c(
-  "red", "red", "red", "red", "red", "red", "red", "red", "red", "red", "red",
-  "red", "red", "red", "red", "red", "red", "red", "red", "red"
-)
+   "black", "black", "black", "black","red", "red", "red", "red")
 # the basic set of common aesthetic settings for PCA plots,
 theme.my.own <- list(
   theme_bw(),
   geom_point(size = 3),
   coord_fixed(),
   scale_y_continuous(
-    breaks = seq(-20, 20, 5),
+    breaks = seq(-40, 80, 10),
     sec.axis = sec_axis(~ . * 1,
       labels = NULL,
       breaks = NULL
     )
   ),
   scale_x_continuous(
-    breaks = seq(-20, 20, 5),
+    breaks = seq(-40, 80, 10),
     sec.axis = sec_axis(~ . * 1,
       labels = NULL,
       breaks = NULL
@@ -380,9 +430,12 @@ percentVar
   ggtitle("PCA") +
   scale_colour_manual(values = color_values) +
   theme.my.own)
-savingFunction(PCAplot_vst, metadatacolumn = "condition")
 
+savingFunction(PCAplot_vst, metadatacolumn = "Condition")
 
+```
+
+```{r}
 # calculate the variance for top 500 gene
 rv <- rowVars(assay(vsd))
 ntop <- 500
@@ -390,7 +443,7 @@ ntop <- 500
 select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, length(rv)))]
 df1 <- t(assay(vsd)[select, ])
 
-res.pca <- PCA(df1, graph = FALSE, scale.unit = FALSE)
+res.pca <- PCA(df1, graph = TRUE, scale.unit = FALSE)
 summary.PCA(res.pca)
 
 # Visualize eigenvalues/variances
@@ -446,7 +499,7 @@ head(rld_cor) ## check the output of cor(), make note of the rownames and colnam
 heat.colors <- brewer.pal(6, "RdYlBu")
 (Hclust_plot <- pheatmap(rld_cor,
   color = heat.colors,
-  main = "Heirarchical Clustering of Samples - Correlation Matrix"
+  main = glue("Heirarchical Clustering of Samples - {Comparison}")
   # filename = 'C:/Users/kesha/Documents/Eva_TotalRNASeq/Hclust_plot.tiff'
 ))
 # Hclust_plot
