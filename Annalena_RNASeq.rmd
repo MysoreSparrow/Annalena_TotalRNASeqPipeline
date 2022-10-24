@@ -5,11 +5,12 @@ date: "`r Sys.Date()`"
 output: 
   html_document: 
     toc: yes
-    fig_width: 8
-    fig_height: 8
+    fig_width: 9
+    fig_height: 9
     fig_caption: yes
     number_sections: yes
     keep_md: yes
+    toc_depth: 4
 ---
 
 
@@ -879,7 +880,7 @@ GO_UPReg_Cnetplot <- plot(cnetplot(GO_UPRegResults,
   font.size = 25,
   label_format = 75,
   colorEdge = FALSE,
-  node_label = "gene",
+  #node_label = "gene",
 
 ))
 saveplot(GO_UPReg_Cnetplot, "GO_UPReg_Cnetplot")
