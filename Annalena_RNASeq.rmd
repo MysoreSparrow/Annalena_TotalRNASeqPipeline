@@ -15,7 +15,11 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = TRUE,
+	warning = FALSE
+)
 ```
 
 ```{r Package Declarations}
@@ -62,21 +66,33 @@ suppressPackageStartupMessages(library("pcaExplorer"))
 
 
 ```{r File Path Declarations }
-
+# Project Path
 Anna_project_path <- file.path("C:/Users/kesha/Documents/R/Annalena_TotalRNAseq/")
-#adult_spfVsd7_spf_path <- file.path(Eva_project_path, "adult_spfVsd7_spf")
+
+# Folder Paths for Different Comparisons
+Day3_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day3_UninfectedVSInfected")
+Day5_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day5_UninfectedVSInfected")
+Day35_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day35_UninfectedVSInfected")
+Day35_UninfectedVSUninfected_path <- file.path(Anna_project_path, "Day35_UninfectedVSUninfected")
+# for UninfectedVSInfected is the volcano plot notation: for Deseq2 results, the infected is Nr. and uninfected is Dr. .
+
+# Provide the countsmatrix and the samples
 countsmatrix_path <- file.path(Anna_project_path,"Countmatrix_mapped_Anna_totalRNAseq.csv")
-
 samples_path <- file.path(Anna_project_path,"Samples_anna.csv")
-# SignificantGenes_path <- file.path(adult_spfVsd7_spf_path, "/SignificantGenes.csv")
-# results_path <- file.path(adult_spfVsd7_spf_path, "/results_DGE.csv")
-# UpGeneList_path <- file.path(adult_spfVsd7_spf_path, "/UpGeneList_DGE.csv")
-# DownGeneList_path <- file.path(adult_spfVsd7_spf_path, "/DownGeneList_DGE.csv")
-# 
-# GO_UPReg_path <- file.path(adult_spfVsd7_spf_path, "/GO_UPReg_results.csv")
-# GO_DOWNReg_path <- file.path(adult_spfVsd7_spf_path, "/GO_DOWNReg_results.csv")
 
+# Also Create a comparison Variable: That Could be used later for all other comparison titles using a glue Variable.
 
+Comparison <- "Day3_UninfectedVSInfected"
+
+# Comparison_Path! NEEDS TOBE UPDATED FOR EVERY NEW COMPARISON BEING RUN for pipeline!
+Comparison_Path <- Day3_UninfectedVSInfected_path
+# Paths for Different Plots and Tables for each comparison. To be updated for each respective comparison that is being run for
+SignificantGenes_path <- file.path(Comparison_Path, "/SignificantGenes.csv")
+results_path <- file.path(Comparison_Path, "/results_DGE.csv")
+UpGeneList_path <- file.path(Comparison_Path, "/UpGeneList_DGE.csv")
+DownGeneList_path <- file.path(Comparison_Path, "/DownGeneList_DGE.csv")
+GO_UPReg_path <- file.path(Comparison_Path, "/GO_UPReg_results.csv")
+GO_DOWNReg_path <- file.path(Comparison_Path, "/GO_DOWNReg_results.csv")
 
 ```
 
@@ -173,7 +189,7 @@ colnames(countsmatrix) <- coldata$Sample_Name
 saveplot <- function(plot, name) {
   # Function to save the plots
   ggsave(
-    filename = glue(Anna_project_path,"/{name}.png"),
+    filename = glue(Comparison_Path,"/{name}.png"),
     plot = plot,
     dpi = 300,
     width = 25,
@@ -336,7 +352,7 @@ savingFunction <- function(plotname, metadatacolumn) {
   # Function to save the PCA plots
   ggsave(
     filename =
-      glue(Anna_project_path, "/PCAplot_{metadatacolumn}.png"),
+      glue(Comparison_Path, "/PCAplot_{metadatacolumn}.png"),
     plot = plotname,
     dpi = 300,
     width = 10,
