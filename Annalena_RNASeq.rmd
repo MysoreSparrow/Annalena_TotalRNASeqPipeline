@@ -12,9 +12,6 @@ output:
     keep_md: yes
     toc_depth: 4
 ---
-
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -95,10 +92,12 @@ GO_DOWNReg_path <- file.path(Comparison_Path, "/GO_DOWNReg_results.csv")
 
 ```{r Count Matrix Input}
 ## Input the Count Matrix
-
 countsmatrix <- read.csv(countsmatrix_path, stringsAsFactors = TRUE)
-### Annotating and Exporting ENSEMBL ID into Gene Symbols
+nrow(countsmatrix)
+```
 
+```{r}
+### Annotating and Exporting ENSEMBL ID into Gene Symbols
 # Adding genes annotated from ENSEMBL ID to Gene symbols and ENTREZ Id to countsmatrix table.
 # Will be keeping the symbols and entrez columsn to be added later into results table as it is for later use
 
@@ -146,6 +145,7 @@ countsmatrix <- countsmatrix %>% filter(
   symbols != "Tsx",
   symbols != "Cnbp2"
 )
+nrow(countsmatrix)
 ```
 
 ```{r Counts Matrix Processing}
@@ -181,7 +181,7 @@ head(coldata)
 colnames(countsmatrix) <- coldata$Sample_Name
 ```
 
-```{r}
+```{r Comparisons: Determine Input Matrices}
 ### Reduce larger Matrix to smaller one - based on comparison
 # *****************Now to the comparisons*************
 # There are two groups of data here
@@ -207,7 +207,7 @@ d3_UninfectedVSInfected_countsmatrix <-
   d3_UninfectedVSInfected_countsmatrix[, rownames(d3_UninfectedVSInfected_coldata)]
 
 
-# # d5 UninfectedVSInfected
+## Day5 UninfectedVSInfected
 d5_UninfectedVSInfected_coldata <-
   coldata[is.element(coldata$Sample_Name, c("AJ_01", "AJ_02",
                                             "AJ_03", "AJ_04",
@@ -227,7 +227,7 @@ d5_UninfectedVSInfected_countsmatrix <-
 
 ```{r The Processed Input is Ready!}
 # Also Create a comparison Variable: That Could be used later for all other comparison titles using a glue Variable.
-Comparison <- "Day3_UninfectedVSInfected"
+Comparison <- "Day3_Uninfected VS Infected"
 
 # Provide the correct Coldata and Countsmatrix for Comparison to be performed!
 coldata <- d3_UninfectedVSInfected_coldata
@@ -235,7 +235,6 @@ countsmatrix <- d3_UninfectedVSInfected_countsmatrix
 ```
 
 ```{r}
-
 # Function to save generic plots
 saveplot <- function(plot, name) {
   # Function to save the plots
@@ -311,42 +310,30 @@ colors <- colorRampPalette(rev(brewer.pal(9, "RdYlBu")))(255)
 ))
 ```
 
-```{r fig.height=6, fig.width=6}
+```{r fig.height=6, fig.width=6 PCA Plot Aesthetics}
 # PCA Plot
 
 ### Functions for Plot aethetics and saving PCA Plots
 color_values <- c(
    "black", "black", "black", "black","red", "red", "red", "red")
+
 # the basic set of common aesthetic settings for PCA plots,
 theme.my.own <- list(
-  theme_bw(),
+  theme_classic(),
   geom_point(size = 3),
   coord_fixed(),
-  scale_y_continuous(
-    breaks = seq(-40, 80, 10),
-    sec.axis = sec_axis(~ . * 1,
-      labels = NULL,
-      breaks = NULL
-    )
-  ),
-  scale_x_continuous(
-    breaks = seq(-40, 80, 10),
-    sec.axis = sec_axis(~ . * 1,
-      labels = NULL,
-      breaks = NULL
-    )
-  ),
-  theme_classic(),
+  scale_y_continuous(breaks = seq(-40, 80, 10), 
+                     sec.axis = sec_axis(~ . * 1, labels = NULL,breaks = NULL)),
+  scale_x_continuous(breaks = seq(-40, 80, 10),
+                     sec.axis = sec_axis(~ . * 1,labels = NULL,breaks = NULL)),
   geom_hline(yintercept = 0, color = "gray", size = 1),
   geom_vline(xintercept = 0, color = "gray", size = 1),
-  theme(
-    text = element_text(size = 15),
-    axis.text = element_text(size = 15),
-    legend.position = "right",
-    aspect.ratio = 1
-  ),
-  # geom_text(size = 4, hjust = 0, vjust = 0)
+  theme(text = element_text(size = 15),
+        axis.text = element_text(size = 15),
+        legend.position = "right",
+        aspect.ratio = 1),
   geom_text_repel(size = 5, min.segment.length = 0.5)
+
 )
 
 
@@ -412,29 +399,40 @@ savingFunction <- function(plotname, metadatacolumn) {
   )
 }
 
+# Calculate the pcaData by calling the function
 pcaData <- plotPCA_local(vsd, intgroup = c("Condition", "Sample_Name"), returnData = T)
-pcaData
+head(pcaData)
 percentVar <- percentvar_calculation(pcaData)
 percentVar
+```
 
-(PCAplot_vst <- ggplot(
+```{r PC Plot: PC1 vs PC2}
+(PCAplot_pc12 <- ggplot(
   pcaData,
-  aes(
-    x = PC1,
-    y = PC2,
-    color = Sample_Name,
-    label = Sample_Name,
-    shape = Condition
-  )
-) +
+  aes(x = PC1,y = PC2, color = Sample_Name, label = Sample_Name, shape = Condition)) +
   xlab(paste0("PC1: ", percentVar[1], "% variance")) +
   ylab(paste0("PC2: ", percentVar[2], "% variance")) +
   ggtitle(glue("PCA: {Comparison}")) +
   scale_colour_manual(values = color_values) +
-  theme.my.own)
+  theme.my.own 
+  )
 
-savingFunction(PCAplot_vst, metadatacolumn = "Condition")
+savingFunction(PCAplot_pc12, metadatacolumn = "Condition")
 
+```
+
+```{r PC Plot: PC3 vs PC4}
+(PCAplot_pc34 <- ggplot(
+  pcaData,
+  aes(x = PC3,y = PC4, color = Sample_Name, label = Sample_Name, shape = Condition)) +
+  xlab(paste0("PC3: ", percentVar[3], "% variance")) +
+  ylab(paste0("PC4: ", percentVar[4], "% variance")) +
+  ggtitle(glue("PCA: {Comparison}")) +
+  scale_colour_manual(values = color_values) +
+  theme.my.own 
+  )
+
+savingFunction(PCAplot_pc34, metadatacolumn = "Condition")
 ```
 
 ```{r}
@@ -466,7 +464,6 @@ head(var$cos2, 25)
 
 ```{r}
 ## Genes + PCA Biplots
-
 fviz_pca_biplot(res.pca,
   repel = TRUE,
   # gradient.cols = c("gray","pink", "blue", "yellow", "green", "red", "black")
@@ -514,9 +511,7 @@ heat.colors <- brewer.pal(6, "RdYlBu")
 dds1 <- DESeq(dds)
 # str(dds1)
 ### Building the results table
-res <- results(dds1,
-  contrast = c("Condition", "Infected", "Uninfected")
-)
+res <- results(dds1, contrast = c("Condition", "Infected", "Uninfected"))
 resdf <- as.data.frame(res) # convert the results table to a df
 head(resdf, 20)
 write.csv(resdf, file = results_path)
@@ -560,7 +555,7 @@ nrow(resdf)
 
 ## Volcano Plots based on Enhanced Volcano
 
-```{r fig.height= 10, fig.width= 10}
+```{r fig.height= 10, fig.width= 10 Volcano Plot1: Log2FCvsPadj}
 p1 <- EnhancedVolcano(resdf,
   lab = resdf$symbol,
   x = "log2FoldChange",
@@ -611,9 +606,9 @@ ggsave(
   units = "in"
 )
 ```
-## volcano Plot of Log2FC vs Padj
 
-```{r fig.height= 10, fig.width= 10}
+## Volcano Plot of Log2FC vs Padj
+```{r fig.height= 10, fig.width= 10 Volcano Plot2: Log2FCvsPadj}
 p2 <- EnhancedVolcano(resdf,
   lab = resdf$symbol,
   x = "log2FoldChange",
@@ -685,19 +680,10 @@ resdf$delabel[resdf$diffexpressed != "NS"] <- resdf$symbol[resdf$diffexpressed !
 sigsdf <- resdf[(abs(resdf$log2FoldChange) > 1) & (resdf$pvalue < 0.05), ]
 nrow(sigsdf)
 ```
-### Gender Genes Removed from Table
 
-```{r}
-sigsdf <- filter(
-  sigsdf,
-  symbol != "Xist",
-  symbol != "Jpx",
-  symbol != "Ftx",
-  symbol != "Tsx",
-  symbol != "Cnbp2"
-)
-nrow(sigsdf)
-# head(sigsdf)
+```{r Verify if any Gender Genes still left}
+genedergenes_df <- sigsdf[is.element(sigsdf$symbol, c("Xist","Jpx","Ftx","Tsx","Cnbp2")), ]
+genedergenes_df
 ```
 
 Therefore, gender genes werent so much in play in terms of significance!
@@ -853,6 +839,16 @@ head(GO_UpRegdf, 20)
 write.csv(GO_UpRegdf, GO_UPReg_path)
 ```
 
+```{r Cytokine Based GO Terms}
+# create a Cytokine based GO term Data frame by extracting the rows that at least partially matches to the word Cytokine
+
+GO_UpRegdf_cytokine <- GO_UpRegdf[str_detect(GO_UpRegdf$Description, "cytokine"), ]
+
+#Warning: I wont be able to detect GO terms that do not have the word cytokines mentioned in their description.
+#
+head(GO_UpRegdf_cytokine, 20)
+write.csv(GO_UpRegdf_cytokine, GO_UPReg_path)
+```
 ```{r fig.height=35}
 GO_UPReg_Barplot <- plot(barplot(GO_UPRegResults,
   showCategory = 25,
