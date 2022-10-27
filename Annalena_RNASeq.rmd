@@ -9,6 +9,8 @@ output:
     number_sections: yes
     keep_md: yes
     toc_depth: 4
+    fig_width: 12
+    fig_height: 12
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -68,8 +70,8 @@ Anna_project_path <- file.path("C:/Users/kesha/Documents/R/Annalena_TotalRNAseq/
 # Folder Paths for Different Comparisons
 Day3_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day3_UninfectedVSInfected")
 Day5_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day5_UninfectedVSInfected")
-Day35_UninfectedVSInfected_path <- file.path(Anna_project_path, "Day35_UninfectedVSInfected")
-Day35_UninfectedVSUninfected_path <- file.path(Anna_project_path, "Day35_UninfectedVSUninfected")
+Day_3UninfectedVS5Infected_path <- file.path(Anna_project_path, "Day_3UninfectedVS5Infected")
+Day_5UninfectedVS3Uninfected_path <- file.path(Anna_project_path, "Day_5UninfectedVS3Uninfected")
 # for UninfectedVSInfected is the volcano plot notation: for Deseq2 results, the infected is Nr. and uninfected is Dr. .
 
 # Provide the countsmatrix and the samples
@@ -77,7 +79,7 @@ countsmatrix_path <- file.path(Anna_project_path, "Countmatrix_mapped_Anna_total
 samples_path <- file.path(Anna_project_path, "Samples_anna.csv")
 
 # Comparison_Path! NEEDS TOBE UPDATED FOR EVERY NEW COMPARISON BEING RUN for pipeline!
-Comparison_Path <- Day3_UninfectedVSInfected_path
+Comparison_Path <- Day5_UninfectedVSInfected_path
 
 # Paths for Different Plots and Tables for each comparison. To be updated for each respective comparison that is being run for
 SignificantGenes_path <- file.path(Comparison_Path, "/SignificantGenes.csv")
@@ -86,6 +88,7 @@ UpGeneList_path <- file.path(Comparison_Path, "/UpGeneList_DGE.csv")
 DownGeneList_path <- file.path(Comparison_Path, "/DownGeneList_DGE.csv")
 GO_UPReg_path <- file.path(Comparison_Path, "/GO_UPReg_results.csv")
 GO_DOWNReg_path <- file.path(Comparison_Path, "/GO_DOWNReg_results.csv")
+termSim_values_path <- file.path(Comparison_Path, "/termSim_values.csv")
 ```
 
 ```{r Count Matrix Input}
@@ -93,7 +96,11 @@ GO_DOWNReg_path <- file.path(Comparison_Path, "/GO_DOWNReg_results.csv")
 countsmatrix <- read.csv(countsmatrix_path, stringsAsFactors = TRUE)
 nrow(countsmatrix)
 ```
-
+```{r Reordering Columns}
+col_order <- c("symbols", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11","a12", "a13", "a14","a15", "a16", "a17", "a18", "a19", "a20")
+countsmatrix <- countsmatrix[, col_order]
+colnames(countsmatrix)
+```
 ```{r}
 ### Annotating and Exporting ENSEMBL ID into Gene Symbols
 # Adding genes annotated from ENSEMBL ID to Gene symbols and ENTREZ Id to countsmatrix table.
@@ -145,7 +152,6 @@ countsmatrix <- countsmatrix %>% filter(
 )
 nrow(countsmatrix)
 ```
-
 ```{r Counts Matrix Processing}
 ## Display the column names
 colnames(countsmatrix)
@@ -170,10 +176,13 @@ head(countsmatrix, 15)
 # Read the csv file and change the column name. the samples.csv is a list of sample names, ie, the names of bam files.
 sample_ID <- read.csv(samples_path)
 coldata <- as.data.frame(sample_ID)
-colnames(coldata) <- c("Sample_Name", "Age", "Condition") # change name of one of the columns
-rownames(coldata) <- coldata[, 1] # move the sample names into row names
+colnames(coldata) <- c("Sample", "Age", "Condition", "Sample_Name") # change name of one of the columns
+rownames(coldata) <- coldata[, 4] # move the sample names into row names
+coldata <- subset(coldata, select = -Sample)  # dropping the Sample column
+coldata <- coldata[,c(3,1,2)] # Reordering
+  
 # The metadata can be found in a df called coldata!
-head(coldata)
+head(coldata, 20)
 
 ## the elements from Sample_Name from coldata must the the colnames of countsmatrix
 colnames(countsmatrix) <- coldata$Sample_Name
@@ -189,16 +198,16 @@ colnames(countsmatrix) <- coldata$Sample_Name
 # # d3 UninfectedVSInfected
 # Using is.element()
 d3_UninfectedVSInfected_coldata <- 
-  coldata[is.element(coldata$Sample_Name, c("AJ_05",  "AJ_06", 
-                                            "AJ_07",  "AJ_08", 
-                                            "AJ_09",  "AJ_10", 
-                                            "AJ_13",  "AJ_14")), ]
+  coldata[is.element(coldata$Sample_Name, c("AJ_3I_1",  "AJ_3I_2", 
+                                            "AJ_3I_3",  "AJ_3I_4", 
+                                            "AJ_3UI_1",  "AJ_3UI_2", 
+                                            "AJ_3UI_3",  "AJ_3UI_4")), ]
 # Select Rows by list of column values
 d3_UninfectedVSInfected_countsmatrix <- subset(countsmatrix, 
-                                               select = c("AJ_05", "AJ_06", 
-                                                          "AJ_07", "AJ_08", 
-                                                          "AJ_09", "AJ_10", 
-                                                          "AJ_13", "AJ_14"))
+                                               select = c("AJ_3I_1",  "AJ_3I_2", 
+                                                          "AJ_3I_3",  "AJ_3I_4", 
+                                                          "AJ_3UI_1",  "AJ_3UI_2", 
+                                                          "AJ_3UI_3",  "AJ_3UI_4"))
 
 # need to rearrange order of columns to be in sync with rownames for deseq2
 d3_UninfectedVSInfected_countsmatrix <- 
@@ -207,16 +216,16 @@ d3_UninfectedVSInfected_countsmatrix <-
 
 ## Day5 UninfectedVSInfected
 d5_UninfectedVSInfected_coldata <-
-  coldata[is.element(coldata$Sample_Name, c("AJ_01", "AJ_02",
-                                            "AJ_03", "AJ_04",
-                                            "AJ_11", "AJ_12",
-                                            "AJ_15", "AJ_16")), ]
+  coldata[is.element(coldata$Sample_Name, c("AJ_5I_1", "AJ_5I_2",
+                                            "AJ_5I_3", "AJ_5I_4",
+                                            "AJ_5UI_1", "AJ_5UI_2",
+                                            "AJ_5UI_3", "AJ_5UI_4")), ]
 # # Select Rows by list of column values
 d5_UninfectedVSInfected_countsmatrix <- subset(countsmatrix,
-                                               select = c("AJ_01", "AJ_02",
-                                                          "AJ_03", "AJ_04",
-                                                          "AJ_11", "AJ_12",
-                                                          "AJ_15", "AJ_16"))
+                                               select = c("AJ_5I_1", "AJ_5I_2",
+                                                          "AJ_5I_3", "AJ_5I_4",
+                                                          "AJ_5UI_1", "AJ_5UI_2",
+                                                          "AJ_5UI_3", "AJ_5UI_4"))
 
 # need to rearrange order of columns to be in sync with rownames for deseq2
 d5_UninfectedVSInfected_countsmatrix <-
@@ -225,12 +234,19 @@ d5_UninfectedVSInfected_countsmatrix <-
 
 ```{r The Processed Input is Ready!}
 # Also Create a comparison Variable: That Could be used later for all other comparison titles using a glue Variable.
-Comparison <- "Day3_Uninfected VS Infected"
+# Comparison <- "Day3_Uninfected VS Infected"
+Comparison <- "Day5_Uninfected VS Infected"
+
 
 # Provide the correct Coldata and Countsmatrix for Comparison to be performed!
 # For Day3 Comparison
-coldata <- d3_UninfectedVSInfected_coldata
-countsmatrix <- d3_UninfectedVSInfected_countsmatrix
+# coldata <- d3_UninfectedVSInfected_coldata
+# countsmatrix <- d3_UninfectedVSInfected_countsmatrix
+
+# For Day5 Comparison
+coldata <- d5_UninfectedVSInfected_coldata
+countsmatrix <- d5_UninfectedVSInfected_countsmatrix
+
 ```
 
 ```{r}
@@ -308,8 +324,8 @@ colors <- colorRampPalette(rev(brewer.pal(9, "RdYlBu")))(255)
   col = colors
 ))
 ```
-
-```{r fig.height=6, fig.width=6 PCA Plot Aesthetics}
+### PCA Plot Aesthetics
+```{r fig.height=6, fig.width=6 }
 # PCA Plot
 
 ### Functions for Plot aethetics and saving PCA Plots
@@ -321,9 +337,9 @@ theme.my.own <- list(
   theme_classic(),
   geom_point(size = 3),
   coord_fixed(),
-  scale_y_continuous(breaks = seq(-40, 80, 10), 
+  scale_y_continuous(breaks = seq(-80, 80, 10), 
                      sec.axis = sec_axis(~ . * 1, labels = NULL,breaks = NULL)),
-  scale_x_continuous(breaks = seq(-40, 80, 10),
+  scale_x_continuous(breaks = seq(-80, 80, 10),
                      sec.axis = sec_axis(~ . * 1,labels = NULL,breaks = NULL)),
   geom_hline(yintercept = 0, color = "gray", size = 1),
   geom_vline(xintercept = 0, color = "gray", size = 1),
@@ -415,10 +431,9 @@ percentVar
   scale_colour_manual(values = color_values) +
   theme.my.own 
   )
-
 savingFunction(PCAplot_pc12, metadatacolumn = "Condition")
 
-(PCAplot_pc12 <- ggplot(
+(PCAplot_pc12_bald <- ggplot(
   pcaData,
   aes(x = PC1,y = PC2, color = Sample_Name, label = "", shape = Condition)) +
   xlab(paste0("PC1: ", percentVar[1], "% variance")) +
@@ -428,7 +443,7 @@ savingFunction(PCAplot_pc12, metadatacolumn = "Condition")
   theme.my.own 
   )
 
-savingFunction(PCAplot_pc12, metadatacolumn = "Condition")
+savingFunction(PCAplot_pc12_bald, metadatacolumn = "Condition")
 
 ```
 
@@ -597,7 +612,7 @@ p1 <- EnhancedVolcano(resdf,
   legendIconSize = 4.0,
   drawConnectors = T,
   widthConnectors = 0.75,
-  max.overlaps = 8,
+  max.overlaps = 10,
   axisLabSize = 22
 )
 (volcano1 <- p1 + scale_y_continuous(
@@ -651,7 +666,7 @@ p2 <- EnhancedVolcano(resdf,
   legendIconSize = 4.0,
   drawConnectors = T,
   widthConnectors = 0.75,
-  max.overlaps = 6,
+  max.overlaps = 15,
   axisLabSize = 22
 )
 (volcano2 <- p2 + scale_y_continuous(
@@ -804,7 +819,7 @@ Need to filter these results to accommodate better the heat maps and also volcan
 ### with tighter constraints (all genes together!)
 
 ```{r}
-sigs3df <- resdf[(resdf$baseMean > 5000) & (abs(resdf$log2FoldChange) > 2) & (resdf$pvalue < 0.05), ]
+sigs3df <- resdf[(resdf$baseMean > 20000) & (abs(resdf$log2FoldChange) > 2) & (resdf$pvalue < 0.05), ]
 mat1 <- counts(dds, normalized = TRUE)[(sigs3df$symbol), ]
 mat1.zs <- t(apply(mat1, 1, scale)) # Calculating the zscore for each row
 colnames(mat1.zs) <- coldata$Sample_Name # need to provide correct sample names for each of the columns
@@ -870,9 +885,9 @@ saveplot(GO_UPReg_Barplot, "GO_UPReg_Barplot")
 ```{r}
 GO_UPReg_Dotplot <- plot(dotplot(GO_UPRegResults,
   showCategory = 25,
-  font.size = 40,
+  font.size = 20,
   title = " Up Regulated GO Terms",
-  label_format = 50
+  label_format = 20
 ))
 # GO_UPReg_Dotplot1 <- GO_UPReg_Dotplot + scale_y_discrete(labels=function(y) str_wrap(y, width=40))
 saveplot(GO_UPReg_Dotplot, "GO_UPReg_Dotplot")
@@ -916,19 +931,14 @@ saveplot(GO_UPReg_enrichtreeplot, "GO_UPReg_enrichtreeplot")
 ```
 ```{r}
 termSim_values <- tibble(edox2@termsim)
-
+termSim_values
+write.csv(termSim_values,termSim_values_path)
 ```
 
 ```{r fig.height=12, fig.width=12}
 emapplot(edox2)
 
 ```
-
-```{r fig.height=12, fig.width=12}
-emapplot_cluster(edox2, showCategory = 50, repel = TRUE, layout = 'star',
-                 color = "p.adjust")
-```
-
 ## GO Terms for Down Regulated Genes
 
 ### GO over-representation analysis for DOWN Regulated Genes
