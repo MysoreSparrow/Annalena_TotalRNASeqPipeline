@@ -479,3 +479,482 @@ saveplot(top25_genes_dim2, plotname = "top25_genes_dim2")
       top = 25
     ))
 saveplot(top25_genes_dim1, plotname = "top25_genes_dim1")
+
+# ********************************DGE Results********************************
+### Running the differential expression pipeline
+dds <- DESeq(dds)
+
+#   "Day3_UninfectedVSDay5_Uninfected", # d7 is the Numerator
+#   "Day3_InfectedVSDay5_Infected", # SPF is the Numerator
+### Building the results table
+### 2nd term will be the Nr.(Infected)
+switch(Comparison,
+       "Day3_UninfectedVSDay3_Infected" = {
+         res <- results(dds, contrast = c("Infection_Status", "Infected", "Uninfected"))
+       },
+       # Day3_UninfectedVSDay3_Infected
+       "Day5_UninfectedVSDay5_Infected" = {
+         res <-
+           results(dds, contrast = c("Infection_Status", "Infected", "Uninfected"))
+       },
+       # Day5_UninfectedVSDay5_Infected
+       "Day3_UninfectedVSDay5_Uninfected" = {
+         res <- results(dds, contrast = c("Age_Days", "Five", "Three"))
+       },
+       # Day3_UninfectedVSDay5_Uninfected
+       "Day3_InfectedVSDay5_Infected" = {
+         res <- results(dds, contrast = c("Age_Days", "Five", "Three"))
+       },
+       # Day3_InfectedVSDay5_Infected
+)
+
+### Histogram of p-values
+hist(
+  res$pvalue,
+  breaks = 100,
+  col = "gray",
+  border = "blue"
+)
+
+# Map Gene symbols to Ensembl and Entrez ID
+resdf <-
+  tibble::rownames_to_column(as.data.frame(res), var = "symbol")
+
+resdf %>%
+  mutate(logpvalue = -log10(resdf$pvalue)) %>%
+  mutate(logpadj = -log10(resdf$padj))
+gn <- resdf$symbol
+# Mapping the Symbol to ENTREZ ID
+entrez <-
+  mapIds(
+    org.Mm.eg.db,
+    keys = gn,
+    column = "ENTREZID",
+    keytype = "SYMBOL",
+    multiVals = "first"
+  )
+ensembl_id <-
+  mapIds(
+    org.Mm.eg.db,
+    keys = gn,
+    column = "ENSEMBL",
+    keytype = "SYMBOL",
+    multiVals = "first"
+  )
+resdf$entrez <-
+  entrez
+resdf$ensemblID <-
+  ensembl_id
+resdf <-
+  resdf %>% filter(!is.na(symbol) & !is.na(entrez))
+
+## Differentially Expressed Genes that are statistically Significant
+resdf$diffexpressed <-
+  "NS"
+# if log2Foldchange > 1.0 and pvalue < 0.05, set as "UP"
+resdf$diffexpressed[resdf$log2FoldChange > 1.0 &
+                      resdf$pvalue < 0.05] <- "UP"
+# if log2Foldchange < -1.0 and pvalue < 0.05, set as "DOWN"
+resdf$diffexpressed[resdf$log2FoldChange < -1.0 &
+                      resdf$pvalue < 0.05] <- "DOWN"
+# Create a new column "delabel" to de, that will contain the name of genes differentially expressed (NA in case they are not)
+# resdf$delabel <- NA
+# resdf$delabel[resdf$diffexpressed != "NS"] <- resdf$symbol[resdf$diffexpressed != "NS"]
+
+# Significant DE Genes Table
+significantgenes_df <- resdf[(abs(resdf$log2FoldChange) > 1) & (resdf$pvalue < 0.05), ] %>%
+  drop_na()
+write.csv(significantgenes_df, file = file.path(Comparison_path,
+                                                glue("SignificantDEgenes_{Comparison}.csv")))
+
+### Cleaning up for volcano plots - Create df based on -log10
+resdf <- resdf %>%
+  mutate(logpvalue = -log10(resdf$pvalue)) %>%
+  mutate(logpadj = -log10(resdf$padj))
+# Check for Values that have Inf when -log10 is applied for pvalue and padj and replace it with NA
+resdf[c('logpvalue', 'logpadj')][sapply(resdf[c(c('logpvalue', 'logpadj'))], is.infinite)] <- NA
+
+# Save the respective results data frame
+write.csv(resdf, file = file.path(Comparison_path, glue("DGE_Results_{Comparison}.csv")))
+## ********************************Volcano Plots based on Enhanced Volcano************************
+# Volcano Plot with pvalue
+volcano1 <-
+  EnhancedVolcano(
+    resdf,
+    lab = resdf$symbol,
+    x = "log2FoldChange",
+    y = "pvalue",
+    xlab = bquote(~ Log[2] ~ "FoldChange"),
+    ylab = bquote(~ Log[10] ~ "Pvalue"),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    title = glue("DE genes: {Comparison}"),
+    subtitle = bquote(~ Log[2] ~ "|FoldChange| = 1, pvalue < 0.05"),
+    pointSize = 2.0,
+    labSize = 5.5,
+    boxedLabels = FALSE,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    colAlpha = 0.5,
+    legendPosition = "bottom",
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = T,
+    widthConnectors = 0.5,
+    max.overlaps = 18,
+    axisLabSize = 18,
+    xlim = c(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5,
+             max(resdf$log2FoldChange, na.rm = TRUE) + 0.5),
+    ylim = c(0, max(resdf$logpvalue, na.rm = TRUE) + 5),
+    raster = TRUE,
+    directionConnectors = "both",
+    arrowheads = TRUE,
+    min.segment.length = 0.3
+  )
+
+volcano1 <- volcano1 +
+  scale_y_continuous(
+    limits = c(0, max(resdf$logpvalue, na.rm = TRUE) + 5),
+    breaks = seq(0, max(resdf$logpvalue, na.rm = TRUE) + 5, 4),
+    sec.axis = sec_axis(~ . * 1, labels = NULL, breaks = NULL)
+  ) +
+  scale_x_continuous(
+    limits = c(
+      ceiling(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5),
+      ceiling(max(resdf$log2FoldChange, na.rm = TRUE) + 0.5)
+    ),
+    breaks = seq(
+      ceiling(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5),
+      ceiling(max(resdf$log2FoldChange, na.rm = TRUE) + 0.5),
+      2
+    ),
+    sec.axis = sec_axis(~ . * 1, labels = NULL, breaks = NULL)
+  )
+# xlab(expression(DownRegulated %<->% UpRegulated)))
+saveplot(volcano1, plotname = "Volcano_pvalue")
+
+# Volcano Plot with padj.
+volcano2 <-
+  EnhancedVolcano(
+    resdf,
+    lab = resdf$symbol,
+    x = "log2FoldChange",
+    y = "padj",
+    xlab = bquote(~ Log[2] ~ "FoldChange"),
+    ylab = bquote(~ Log[10] ~ "Padj"),
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    title = glue("DE genes: {Comparison}"),
+    subtitle = bquote(~ Log[2] ~ "|FoldChange| = 1, pvalue < 0.05"),
+    pointSize = 2.0,
+    labSize = 5.0,
+    boxedLabels = FALSE,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    colAlpha = 0.5,
+    legendPosition = "bottom",
+    legendLabSize = 12,
+    legendIconSize = 4.0,
+    drawConnectors = T,
+    widthConnectors = 0.75,
+    max.overlaps = 18,
+    axisLabSize = 18,
+    xlim = c(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5,
+             max(resdf$log2FoldChange, na.rm = TRUE) + 0.5),
+    ylim = c(0, max(resdf$padj, na.rm = TRUE) + 5),
+    raster = TRUE,
+    directionConnectors = "both",
+    arrowheads = TRUE,
+    min.segment.length = 0.25
+  )
+volcano2 <- volcano2 +
+  scale_y_continuous(
+    limits = c(0, max(resdf$logpadj, na.rm = TRUE) + 5),
+    breaks = seq(0, max(resdf$logpadj, na.rm = TRUE) + 5, 4),
+    sec.axis = sec_axis(~ . * 1, labels = NULL, breaks = NULL)
+  ) +
+  scale_x_continuous(
+    limits = c(
+      ceiling(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5),
+      ceiling(max(resdf$log2FoldChange, na.rm = TRUE) + 0.5)
+    ),
+    breaks = seq(
+      ceiling(min(resdf$log2FoldChange, na.rm = TRUE) - 0.5),
+      ceiling(max(resdf$log2FoldChange, na.rm = TRUE) + 0.5),
+      2
+    ),
+    sec.axis = sec_axis(~ . * 1, labels = NULL, breaks = NULL)
+  )
+# xlab(expression(DownRegulated %<->% UpRegulated))
+saveplot(volcano2, plotname = "Volcano_padj")
+
+### Number of Genes from different strains that are contributing to UP/DOWN regulation.
+significantgenes_df_UP <- significantgenes_df[(significantgenes_df$log2FoldChange) > 1, ] %>%
+  drop_na() # UP Regulation Table
+significantgenes_df_DOWN <- significantgenes_df[(significantgenes_df$log2FoldChange) < -1, ] %>%
+  drop_na()# DOWN Regulation Table
+nrow(significantgenes_df_UP)
+nrow(significantgenes_df_DOWN)
+write.csv(significantgenes_df_UP,
+          file.path(Comparison_path, glue("SignificantDE_UPgenes_{Comparison}.csv")))
+write.csv(significantgenes_df_DOWN,
+          file.path(Comparison_path,glue("SignificantDE_DOWNgenes_{Comparison}.csv")))
+
+
+## ********************************Z-score based Gene Heatmaps********************************
+# Determining the significant Genes based on Log2FC and pvalue thresholds
+sigs2df <-
+  resdf[(abs(resdf$log2FoldChange) > 1) & (resdf$pvalue < 0.05), ]
+
+# mat <- counts(dds1, normalized = TRUE)[rownames(sigsdf),]
+mat <- counts(dds, normalized = TRUE)[(significantgenes_df$symbol) %in% rownames(counts(dds)), ]
+mat.zs <- t(apply(mat, 1, scale)) # Calculating the zscore for each row
+mat.zs[!rowSums(!is.finite(mat.zs)),] # keep only finite values from the zcsore matrix
+mat.zs <- na.omit(mat.zs) # Drop NaN rows
+colnames(mat.zs) <- coldata$Sample_Name # need to provide correct sample names for each of the columns
+
+write.csv(mat.zs, file.path(Comparison_path, glue("Allgenes_zscorematrix_{Comparison}.csv")))
+
+(
+  AllGenes_Heatmap <- Heatmap(
+    mat.zs,
+    cluster_columns = TRUE,
+    cluster_rows = TRUE,
+    column_labels = colnames(mat.zs),
+    name = glue("DE Genes- {Comparison}"),
+    show_row_names = FALSE,
+    use_raster = TRUE,
+    raster_quality = 10,
+    column_names_gp = grid::gpar(fontsize = 12),
+    # row_labels = sigs2df[rownames(mat2.zs), ]$symbol
+    heatmap_legend_param = list(
+      legend_direction = "horizontal",
+      legend_width = unit(x = 5, units = "cm")
+    )
+  )
+)
+
+jpeg(
+  file = file.path(
+    Comparison_path,
+    glue("/DEGenes_heatmap1_{Comparison}.jpeg")
+  ),
+  width = 1000,
+  height = 1000,
+  units = "px",
+  pointsize = 12,
+  bg = "white",
+  res = NA,
+  family = "",
+  restoreConsole = TRUE,
+  type = "windows",
+  symbolfamily = "default"
+)
+draw(AllGenes_Heatmap, heatmap_legend_side = "bottom")
+# dev.off()
+while (!is.null(dev.list())) {
+  dev.off()
+}
+# LongHeatMap_Allgenes <- Heatmap(mat.zs,
+#                                 cluster_columns = TRUE,
+#                                 cluster_rows = TRUE,
+#                                 column_labels = colnames(mat.zs),
+#                                 row_labels = rownames(mat.zs),#sigsdf[rownames(mat2.zs), ]$symbol
+#                                 name = "All Genes",
+#                                 show_row_names = TRUE,
+#                                 use_raster = TRUE,
+#                                 raster_quality = 5,
+#                                 column_names_gp = grid::gpar(fontsize = 12),
+#                                 #row_labels = sigsdf[rownames(mat2.zs), ]$symbol
+# )
+# jpeg(file = file.path(Comparison_path, glue("/DEGenes_heatmap2_{Comparison}.jpeg") ),
+#      width = 1000, height = 2000, units = "px", pointsize = 12, bg = "white", res = NA,
+#      family = "", restoreConsole = TRUE, type = "windows", symbolfamily = "default")
+# draw(LongHeatMap_Allgenes, heatmap_legend_side = "bottom")
+# dev.off()
+### Heatmap with tighter constraints (all genes together!)
+sigs1df <- resdf[(resdf$baseMean > 100) &
+          (abs(resdf$log2FoldChange) > 1.5) & (resdf$pvalue < 0.05), ]
+mat1 <- counts(dds, normalized = TRUE)[(sigs1df$symbol), ]
+mat1.zs <- t(apply(mat1, MARGIN = 1, scale)) # Calculating the zscore for each row
+mat1.zs[!rowSums(!is.finite(mat1.zs)),] # keep only finite values from the zcsore matrix
+mat1.zs <- na.omit(mat1.zs) # Drop NaN rows
+colnames(mat1.zs) <- coldata$Sample_Name # need to provide correct sample names for each of the columns
+
+Tightconstraints_Heatmap <-
+  Heatmap(
+    mat1.zs,
+    cluster_columns = TRUE,
+    cluster_rows = TRUE,
+    column_labels = colnames(mat1.zs),
+    name = glue("DE Genes - {Comparison}"),
+    row_labels = rownames(mat1.zs),
+    column_names_gp = grid::gpar(fontsize = 18),
+    row_names_gp = grid::gpar(fontsize = 20),
+    heatmap_legend_param = list(
+      legend_direction = "horizontal",
+      legend_width = unit(x = 5, units = "cm")
+    )
+  )
+jpeg(
+  file = file.path(
+    Comparison_path,
+    glue("/DEGenes_heatmap3_{Comparison}.jpeg")
+  ),
+  width = 1000,
+  height = 1500,
+  units = "px",
+  pointsize = 12,
+  bg = "white",
+  res = NA,
+  family = "",
+  restoreConsole = TRUE,
+  type = "windows",
+  symbolfamily = "default"
+)
+draw(Tightconstraints_Heatmap, heatmap_legend_side = "bottom")
+while (!is.null(dev.list())) {
+  dev.off()
+} # dev.off()
+
+
+# *************Functional Analysis using Cluster Profiler*************************
+print("***Functional Analysis using Cluster Profiler***")
+## GO over-representation analysis
+### GO Terms for UP Regulated Genes
+UPgene_ENS_ID <-
+  (significantgenes_df_UP$ensemblID)
+GO_UPRegResults <-
+  enrichGO(
+    gene = UPgene_ENS_ID,
+    OrgDb = "org.Mm.eg.db",
+    keyType = "ENSEMBL",
+    ont = "BP",
+    pAdjustMethod = "BH",
+    pvalueCutoff = 0.05,
+    qvalueCutoff = 0.05,
+    readable = TRUE
+  )
+GO_UPRegResults_df <- as.data.frame(GO_UPRegResults)
+write.csv(GO_UPRegResults_df, file.path(Comparison_path, glue("GO_UPRegResults_df_{Comparison}.csv")))
+
+## T-Cell Based GO Terms
+# create a TCell based GO term Data frame by extracting the rows that at least partially matches to the word TCELL
+GO_UpRegdf_TCell <- GO_UPRegResults_df %>% filter(grepl("T cell | lymphocyte | leukocyte | mononuclear cell |cell activation | immune response", Description))
+
+# Warning: I wont be able to detect GO terms that do not have the word TCell_terms mentioned in their description.
+write.csv(GO_UpRegdf_TCell, file.path(Comparison_path, glue("GO_TCELL_{Comparison}.csv")))
+
+# Functional Analysis Plots
+if (nrow(GO_UPRegResults_df > 0)) {
+  GO_UPReg_Barplot <-
+    plot(
+      barplot(
+        GO_UPRegResults,
+        showCategory = 25,
+        font.size = 15,
+        title = "UpRegulated",
+        label_format = 45
+      )
+    )
+  saveplot(plot = GO_UPReg_Barplot, plotname = "GO_UPReg_Barplot")
+  GO_UPReg_Dotplot <-
+    plot(
+      dotplot(
+        GO_UPRegResults,
+        showCategory = 25,
+        font.size = 15,
+        title = "UpRegulated",
+        label_format = 45
+      )
+    )
+  saveplot(plot = GO_UPReg_Dotplot, plotname = "GO_UPReg_Dotplot")
+  GO_UPReg_Cnetplot <-
+    plot(cnetplot(
+      GO_UPRegResults,
+      showCategory = 15,
+      font.size = 20
+    ))
+  saveplot(plot = GO_UPReg_Cnetplot, plotname = "GO_UPReg_Cnetplot")
+  GO_UPReg_Heatplot <-
+    plot(heatplot(GO_UPRegResults, foldChange = 1))
+  saveplot(plot = GO_UPReg_Heatplot, plotname = "GO_UPReg_Heatplot")
+  edox2 <-
+    pairwise_termsim(GO_UPRegResults)
+  GO_UPReg_enrichtreeplot <-
+    plot(treeplot(edox2))
+  saveplot(plot = GO_UPReg_enrichtreeplot, plotname = "GO_UPReg_enrichtreeplot")
+  (GO_UPReg_emapplot <-
+      emapplot(edox2, showCategory = 25, repel = TRUE))
+  saveplot(plot = GO_UPReg_emapplot, plotname = "GO_UPReg_emapplot")
+} else {
+  print("There were 0 rows in ORA analysis results!")
+}
+### GO Terms for DOWN Regulated Genes
+DOWNgene_ENS_ID <-
+  (significantgenes_df_DOWN$ensemblID)
+GO_DOWNRegResults <-
+  enrichGO(
+    gene = DOWNgene_ENS_ID,
+    OrgDb = "org.Mm.eg.db",
+    keyType = "ENSEMBL",
+    ont = "BP",
+    pAdjustMethod = "BH",
+    pvalueCutoff = 0.05,
+    qvalueCutoff = 0.05,
+    readable = TRUE
+  )
+GO_DOWNRegResults_df <-
+  as.data.frame(GO_DOWNRegResults)
+write.csv(GO_DOWNRegResults_df, file.path(
+  Comparison_path,
+  glue("GO_DOWNRegResults_df_{Comparison}.csv")
+))
+
+if (nrow(GO_DOWNRegResults_df > 0)) {
+  GO_DOWNReg_Barplot <-
+    plot(
+      barplot(
+        GO_DOWNRegResults,
+        showCategory = 25,
+        font.size = 15,
+        title = "DOWNRegulated",
+        label_format = 45
+      )
+    )
+  saveplot(plot = GO_DOWNReg_Barplot, plotname = "GO_DOWNReg_Barplot")
+  GO_DOWNReg_Dotplot <-
+    plot(
+      dotplot(
+        GO_DOWNRegResults,
+        showCategory = 25,
+        font.size = 15,
+        title = "DOWNRegulated",
+        label_format = 45
+      )
+    )
+  saveplot(plot = GO_DOWNReg_Dotplot, plotname = "GO_DOWNReg_Dotplot")
+  GO_DOWNReg_Cnetplot <-
+    plot(cnetplot(
+      GO_DOWNRegResults,
+      showCategory = 15,
+      font.size = 20
+    ))
+  saveplot(plot = GO_DOWNReg_Cnetplot, plotname = "GO_DOWNReg_Cnetplot")
+  GO_DOWNReg_Heatplot <-
+    plot(heatplot(GO_DOWNRegResults, foldChange = 1))
+  saveplot(plot = GO_DOWNReg_Heatplot, plotname = "GO_DOWNReg_Heatplot")
+  edox2 <-
+    pairwise_termsim(GO_DOWNRegResults)
+  GO_DOWNReg_enrichtreeplot <-
+    plot(treeplot(edox2))
+  saveplot(plot = GO_DOWNReg_enrichtreeplot, plotname = "GO_DOWNReg_enrichtreeplot")
+
+  GO_DOWNReg_emapplot <-
+    emapplot(edox2, showCategory = 25, repel = TRUE)
+  saveplot(plot = GO_DOWNReg_emapplot, plotname = "GO_DOWNReg_emapplot")
+} else {
+  print("There were 0 rows in ORA analysis results!")
+}
+
+# } # ending the for loop for ComparisonList
