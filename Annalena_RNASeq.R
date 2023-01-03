@@ -54,47 +54,39 @@ here()
 # Creating a comparison Variable: That Could be used later for all other comparison titles using a
 # glue Variable. Define the Comparison and also create the folder for saving all plots and results to be
 # saved as per the comparison
-# ComparisonList <- c(
-#   "Day3_UninfectedVSDay3_Infected", # SPF is the Numerator.
-#   "Day5_UninfectedVSDay5_Infected", # d7 WT is the Numerator.
-#   "Day3_UninfectedVSDay5_Uninfected", # d7 is the Numerator
-#   "Day3_InfectedVSDay5_Infected", # SPF is the Numerator
-# )
-# for (i in ComparisonList) {
-#   print(i)
-#   Comparison <- i
-#   print(Comparison)
+ComparisonList <- c(
+  "Day3_UninfectedVSDay3_Infected", # SPF is the Numerator.
+  "Day5_UninfectedVSDay5_Infected", # d7 WT is the Numerator.
+  "Day3_UninfectedVSDay5_Uninfected", # d7 is the Numerator
+  "Day3_InfectedVSDay5_Infected" # SPF is the Numerator
+)
+for (i in ComparisonList) {
+  print(i)
+  Comparison <- i
+  print(Comparison)
 
-Comparison <- "Day3_UninfectedVSDay3_Infected" # SPF is the Numerator.
-# Comparison <- "Day5_UninfectedVSDay5_Infected" # d7 is the Numerator
-# Comparison <- "Day3_UninfectedVSDay5_Uninfected"# SPF is the Numerator
-# Comparison <- "Day3_InfectedVSDay5_Infected" # d7 WT is the Numerator
+# Determine the Comparison Condition: Comment one of them out based on the comparison you are trying to run.
+if (Comparison %in% c("Day3_UninfectedVSDay3_Infected", "Day5_UninfectedVSDay5_Infected")) {
+  Comparison_Condition <- "Infection_Status"
+  print(Comparison_Condition)
+} else {
+  Comparison_Condition <- "Age_Days"
+  print(Comparison_Condition)
+}
+# Comparison_Condition <- "MouseType"
+# Comparison_Condition <- "condition"
 
-  # Determine the Comparison Condition: Comment one of them out based on the comparison you are trying to run.
-  if (Comparison %in% c("Day3_UninfectedVSDay3_Infected", "Day5_UninfectedVSDay5_Infected")) {
-    Comparison_Condition <- "Infection_Status"
-    print(Comparison_Condition)
-  } else {
-    Comparison_Condition <- "Age_Days"
-    print(Comparison_Condition)
-  }
-  # Comparison_Condition <- "MouseType"
-  # Comparison_Condition <- "condition"
+# Folder Paths for Different Comparisons
+Comparison_path <- file.path(here(), glue("{Comparison}"))
+if (!dir.exists(here(Comparison_path))) {
+  dir.create(here(Comparison_path))
+} else {
+  print("Dir already exists!")
+}
+paste0(Comparison_path)
 
-  # Folder Paths for Different Comparisons
-  Comparison_path <- file.path(here(), glue("{Comparison}"))
-  if (!dir.exists(here(Comparison_path))) {
-    dir.create(here(Comparison_path))
-  } else {
-    print("Dir already exists!")
-  }
-  paste0(Comparison_path)
-
-  # for Example: UninfectedVSInfected is the volcano plot notation: for Deseq2 results,
-  # the infected is Numerator.and uninfected is Denominator. which will result in DESEQ contrast like (condition, Infected, Uninfected) and hence the infected part will come on the right side of the volcano plot.
-
-# }
-
+# for Example: UninfectedVSInfected is the volcano plot notation: for Deseq2 results,
+# the infected is Numerator.and uninfected is Denominator. which will result in DESEQ contrast like (condition, Infected, Uninfected) and hence the infected part will come on the right side of the volcano plot.
 
 # Provide the countsmatrix and the samples
 countsmatrix <- read.csv(file.path(here(), "Countmatrix_mapped_Anna_totalRNAseq.csv"))
@@ -957,4 +949,4 @@ if (nrow(GO_DOWNRegResults_df > 0)) {
   print("There were 0 rows in ORA analysis results!")
 }
 
-# } # ending the for loop for ComparisonList
+} # ending the for loop for ComparisonList
